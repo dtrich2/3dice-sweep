@@ -1,0 +1,50 @@
+material BEOL_AL :
+    thermal conductivity 18.85e-6 ;  //0.877 SiO2 (1.1e-6), .1187 Al (1.5e-4)
+    volumetric heat capacity 2.175e-12 ;
+
+material BEOL_RRAM :
+    thermal conductivity 2.61e-6 ;  //1.377 SiO2 (1.1e-6), .02993 W (3.5e-5), .01434 TiN (2e-6), 5.12E-4*2 HfO2 (1.1e-6), 5.12E-4*2 Ti (2.19e-5)
+    volumetric heat capacity 2.175e-12 ;
+
+material BEOL_AL2 :
+    thermal conductivity 74.41e-6 ;    //0.4906 Al (1.5e-4), .5059 SiO2 (1.1e-6)
+    volumetric heat capacity 2.175e-12 ;
+
+material SIO2 :
+    thermal conductivity 1.1e-6 ;
+    volumetric heat capacity 1.62e-12 ;
+
+top heat sink:
+    heat transfer coefficient 1e10 ;
+    temperature 293.15 ;
+
+dimensions :
+   chip length 39, width 65.7 ;
+   cell length  0.1, width   0.1 ;
+
+die RRAMDIE :
+    layer 0.1 SIO2 ;
+    layer 0.1 BEOL_AL2 ;
+    layer 0.1 BEOL_AL2 ;
+    layer 0.15 BEOL_AL2 ;
+    layer 0.1 BEOL_RRAM ;
+    layer 0.1 BEOL_RRAM ;
+    layer 0.1 BEOL_RRAM ;
+    layer 0.1 BEOL_RRAM ;
+    layer 0.1 BEOL_RRAM ;
+    layer 0.1 BEOL_AL ;
+    layer 0.1 BEOL_AL ;
+    layer 0.15 BEOL_AL ;
+    source 0.1 SIO2 ;
+
+stack :
+    die RRAM RRAMDIE floorplan "./simfiles/rram_only/rram.flp" ;
+
+solver:
+   steady ;
+   initial temperature 293.15 ;
+
+output:
+   Tmap     (     RRAM,             "rram_temp.txt",             final ) ;
+   Pmap     (     RRAM,             "rram_power.txt",             final ) ;
+

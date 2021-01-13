@@ -1,0 +1,49 @@
+material BEOL_AL :
+    thermal conductivity 2.25e-6 ;          // W/(umK)
+    volumetric heat capacity 2.175e-12 ;    // J/(um^3K)
+
+material BEOL_RRAM :
+    thermal conductivity 2.25e-6 ;
+    volumetric heat capacity 2.175e-12 ;
+
+material SIO2 :
+    thermal conductivity 1.38e-6 ;
+    volumetric heat capacity 1.62e-12 ;
+
+material SI :
+    thermal conductivity 150e-6 ;
+    volumetric heat capacity 1.62e-12 ;
+    
+top heat sink:
+    heat transfer coefficient 1e-7 ;      // W/(um^2K) (1e-7=1e5 W/m^2K)
+    temperature 293.15 ;
+
+dimensions :
+   chip length 100, width 100 ;
+   cell length  1, width   1 ;
+
+die LOWERDIE :
+    layer 100 SI ;        //layer height in um. top is closest to ambient
+    source 0.5 SIO2 ;
+    layer 3 BEOL_AL ;
+    
+die UPPERDIE :
+    source 0.5 SIO2 ;
+    layer 0.5 BEOL_AL ;
+    layer 0.5 BEOL_RRAM ;
+    layer 0.5 SIO2 ;
+
+stack:
+    die LOWER LOWERDIE floorplan "./simfiles/thermalcnt/thermalcnt.flp" ;
+    die UPPER UPPERDIE floorplan "./simfiles/thermalcnt/thermalcnt.flp" ;
+
+solver:
+   steady ;
+   initial temperature 293.15 ;
+
+output:
+   Tmap     (     LOWER,             "lower_thermalcnt_temp.txt",             final ) ;
+   Pmap     (     LOWER,             "lower_thermalcnt_power.txt",             final ) ;
+   Tmap     (     UPPER,             "upper_thermalcnt_temp.txt",             final ) ;
+   Pmap     (     UPPER,             "upper_thermalcnt_power.txt",             final ) ;
+

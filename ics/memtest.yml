@@ -1,0 +1,64 @@
+# This is the configuration file for my simulation
+---
+
+defaultdimensions: [1000, 1000] #chip dimensions in um
+defaultgranularity: [100, 100]  #simulation cell size in um
+
+sim_params: !pspace    # <- will construct a ParamSpace from what is inside
+  
+  heatsinks:
+    top:  #heatsink placed on top of IC
+      coefficient: 2e4
+    bottom: #secondary heat path through PCB
+      coefficient: 10
+
+
+  materials: 
+    sio2: 
+      k: 1.1  #W/mK
+      C: 1.496e6  #J/m3K
+    si : 
+      k: 130
+      C: 1.628e6
+    rram : 
+      k: 2
+      C: 1.496e6  #placeholder
+    beol: 
+      k: 2
+      C: 1.496e6  #placeholder
+    beol2:
+      k: 2
+      C: 1.496e6  #placeholder
+  ncompute: !pdim
+    default: 1    #already 1 compute from bottomlayer
+    range: [0, 3, 1]  #0 run in separate simulation
+  nmemory: !pdim
+    default: 1
+    range: [1, 7, 1]
+  nrepeats: 1
+  layers: 
+    bottomlayer:
+      tiers: 
+        si: 48  #height in um. TIER ORDER NOT PRESERVED: SEE 'TIERORDERS'
+        sio2: 1
+        beol: 1
+      power: 75
+      sourcetier: 1 #zero-indexed
+    compute:
+      tiers: 
+        sio2: 1
+        beol: 1
+      power: 75
+      sourcetier: 0
+    memory:
+      tiers:
+        sio2: 1
+        beol: 1
+        rram: 6
+        beol2: 1
+      power: 7
+      sourcetier: 0
+tierorders:
+  bottomlayer: [si, sio2, beol]
+  compute: [sio2, beol]
+  memory: [sio2, beol, rram, beol2]

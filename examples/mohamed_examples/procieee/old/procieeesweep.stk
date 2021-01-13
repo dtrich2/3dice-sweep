@@ -1,0 +1,61 @@
+material BEOL :
+    thermal conductivity 0.000012 ;          // W/(umK)
+    volumetric heat capacity 2.175e-12 ;    // J/(um^3K)
+
+material BEOL_RRAM :
+    thermal conductivity 2.25e-6 ;
+    volumetric heat capacity 2.175e-12 ;
+
+material SIO2 :
+    thermal conductivity 1.1e-6 ;
+    volumetric heat capacity 1.5e-12 ;
+
+material SI :
+    thermal conductivity 130e-6 ;
+    volumetric heat capacity 1.6e-12 ;
+
+//g=0.2 W/mK, along cnt k=3000 W/mK, contact RC,Th𪖹0^6 K/W, diameter=2nm (https://aip.scitation.org/doi/full/10.1063/1.2717855), 28 nm node (56 nm gate pitch)
+//assume average 25 CNTs per transistor at 28 nm node (carlo said 25). width about 100nm, assume 4nm pitch
+//UNKNOWN AREA COVERAGE. 28nm node (2009) is 245 Mtransistors/cm2 according to this source (https://www.semiconductors.org/wp-content/uploads/2018/08/2003Overall-Roadmap-Technology-Characteristics.pdf). typical transistor has 
+//thermal conductivity: g*56nm=1/Rcnt=1.12e-8 W/K. Rcnt||0.5*Rc,th=Rtube=9e6 K/W. Area coverage=245e6*25 tubes/cm2=245e6*25*2nm*56nm/cm2=0.686% area coverage. rest is 1.1 SIO2. layer depth is 2nm. total R=.00686*9e6+(1-.00686)*1.81e9. i.e. can model as sio2 layer
+material CNFET :    
+    thermal conductivity 1.1e-6 ;
+    volumetric heat capacity 1.5e-12 ;
+    
+top heat sink:
+    heat transfer coefficient 2e-8 ;      // W/(um^2K) (2e-8=2e4 W/m^2K)
+    temperature 293.15 ;
+
+dimensions :
+   chip length 100, width 100 ;
+   cell length  1, width   1 ;
+
+die COMPUTEDIE :
+    layer 20 SI ;        //layer height in um. top is closest to ambient
+    layer 0.5 SIO2 ;
+    source 0.035 CNFET ;
+    layer 3 BEOL ;
+    
+die SRAMDIE :
+    source 0.5 SIO2 ;
+    layer 3 BEOL ;
+    layer 0.5 BEOL_RRAM ;
+    layer 0.5 SIO2 ;
+
+die MEMDIE :
+    source 0.5 SIO2 ;
+    layer 3 BEOL ;
+    layer 3 BEOL_RRAM ;
+    layer 0.5 SIO2 ;
+
+stack:
+    die COMPUTE COMPUTEDIE floorplan "./simfiles/procieee/procieeesweep_cores.flp" ;
+    die SRAM SRAMDIE floorplan "./simfiles/procieee/procieeesweep_mem.flp" ;
+    die MEM MEMDIE floorplan "./simfiles/procieee/procieeesweep_mem.flp" ;
+
+solver:
+   steady ;
+   initial temperature 293.15 ;
+
+output:
+   Tmap     (     MEM,             "procieee_top_temp.txt",             final ) ;
