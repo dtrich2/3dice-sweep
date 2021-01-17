@@ -11,20 +11,24 @@ import os
 from methods import *
 
 toplevel='sim_params'
+ymlfile='./ics/'+sys.argv[1]+'.yml'
+resultsfile='./results/'+sys.argv[1]+'.csv'
 
-with open(sys.argv[1]+".yml", mode='r') as cfg_file:
+with open(ymlfile, mode='r') as cfg_file:
     cfg = yaml.load(cfg_file)
 # cfg is now a dict with keys from .yaml file
 pspace = cfg[toplevel]
 print(pspace.get_info_str())
-print("ETA: {:.2f} hours".format(pspace.volume/(7*3600)))
-results = open(sys.argv[1]+".csv", "w")
+print("ETA: {:.2f} hours".format(pspace.volume/(4*3600)))
+print("{}it total".format(pspace.volume))
+results = open(resultsfile, "w")
 writeheader(pspace, results)
 for params in tqdm(pspace):
     layers=['bottomlayer']
     for nrepeats in range(params['nrepeats']):
       for ncompute in range(params['ncompute']):
-        layers.append('compute')
+        if not (nrepeats==0 and ncompute==0):
+          layers.append('compute')
       for nmemory in range(params['nmemory']):
         layers.append('memory')
     #print(json.dumps(params, indent=4))
