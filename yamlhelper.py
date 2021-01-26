@@ -96,36 +96,24 @@ def listvals(cfg):
         else:
             print("{} = {}".format(item, flat_pspace[item]))
 
-def writeheader(pspace, results):
-    pathlist=paths(pspace._dict)
+def writeheader(flat_pspace, keys, results):
     stackstats=[]
     for key in ['nmemory', 'ncompute', 'nrepeats']:
-        if isinstance(pspace._dict[key], int):
-            stackstats.append(pspace._dict[key])
+        if isinstance(flat_pspace[key], int):
+            stackstats.append(flat_pspace[key])
         else:
-            stackstats.append(max(pspace._dict['nmemory'].values))
+            stackstats.append(max(flat_pspace[key].values))
     nmemory, ncompute, nrepeats=tuple(stackstats)
     maxstack=nrepeats*(nmemory+ncompute)
     if ncompute==0: maxstack+=1
-    for mypath in pathlist:
-        firststep=True
-        for step in mypath:
-            if not firststep:
-                results.write("_")
-            firststep=False
-            results.write("{}".format(step))
-        results.write(",")
+    for param in keys:
+        results.write("{},".format(param))
     results.write("Tj,Tavg")
     for layer in list(range(maxstack)):
         results.write(",Tavg{}".format(layer))
     results.write("\n")
     
 
-def writevalues(params, results):
-    for mypath in paths(params):
-        evalstring=""
-        for step in mypath:
-            evalstring=evalstring+"['"+step+"']"
-        evalstring="results.write(\"{}\".format(params"+evalstring+"))"
-        eval(evalstring)
-        results.write(",")
+def writevalues(flat_params, keys, results):
+    for param in keys:
+            results.write("{},".format(flat_params[param]))

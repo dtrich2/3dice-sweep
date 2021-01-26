@@ -4,16 +4,20 @@ import sys
 import os.path
 from os import path
 import subprocess
+import numpy as np
 
 class ic:
-    def __init__(self, materialdict, layerdict, layers, tierorders, heatsinks, dimensions, granularity, outputfile, mydir, flps=[]):  #layer keys entered in 'layers' from bottom to top
+    def __init__(self, materialdict, layerdict, distdict, distlist, layers, tierorders, heatsinks, dimensions, resolution, outputfile, mydir, flps=[]):  #layer keys entered in 'layers' from bottom to top
         self.heatsinks=heatsinks
         self.layerdict=layerdict
+        self.distlist=distlist
         self.materialdict=materialdict
+        self.distdict=distdict
         self.layers=layers
         self.dimensions=dimensions
+        self.resolution=resolution
         self.area=dimensions[0]/1e6*dimensions[1]/1e6 #area in m^2
-        self.granularity=granularity
+        self.granularity=np.divide(dimensions,resolution)
         self.flps=flps
         self.tierorders=tierorders
         self.mydir=mydir
@@ -55,15 +59,18 @@ class ic:
 
     def writeflps(self):
         self.flps=[]
+        distcounter={}
+        origlayer=self.layers.copy()
+        self.layers[0]='compute'    #remove bottomlayer for simplicity
         for (layer,layernum) in zip(self.layers, list(range(0,len(self.layers)))):
-            power=self.layerdict[layer]['power']*self.area*1e4     #conversion from m^2 to cm^2
+
+            if not (layer in distcounter) or distcounter[layer]>=len(self.distlist[layer]):
+                distcounter[layer]=0
             flpfile=self.mydir+"/layer{}.flp".format(layernum)
             self.flps.append(flpfile)
-            flp = open(flpfile, "w")
-            flp.write("""C:
-    rectangle(0,0,{},{});
-    power values {};\n""".format(self.dimensions[0], self.dimensions[1], power))
-            flp.close()
+            self.writeflp(powerdens=self.layerdict[layer]['power'], flpfile=flpfile, dist=self.distlist[layer][distcounter[layer]])
+            distcounter[layer]+=1
+        self.layers=origlayer
 
     def writestack(self, stk):
         stk.write("stack:\n")
@@ -120,4 +127,47 @@ output:\n""")
         maxes=[t-273.15 for t in maxes]
         return (max(maxes), averages)
 
-
+    def writeflp(self, powerdens, flpfile, dist):
+        #normalize ratios to 1
+        dimensions=self.dimensions
+        resolution=self.resolution
+        flp = open(flpfile, "w")
+        area_in_cm=dimensions[0]*dimensions[1]*1e-8 #dimensions in um
+        totalpower=powerdens*area_in_cm
+        loccoords, sizecoords, hslist=([], [], [])
+        hstotalsize, weightedratio=(0,0)
+        for loc, ratio, size in zip(self.distdict[dist]['hslocs'], self.distdict[dist]['hsratio'], self.distdict[dist]['hssize']):
+            loc=np.subtract(loc,np.divide(size,2))   #convert from center to bottom left
+            locgrains=np.round(list(np.multiply(loc,resolution)))   #round to fit to granularity
+            sizegrains=np.round(list(np.multiply(size,resolution)))
+            if sizegrains[0]==0: sizegrains[0]=1        #no hotspot should disappear
+            if sizegrains[1]==0: sizegrains[1]=1
+            loccoords.append(list(np.multiply(np.divide(locgrains,resolution),dimensions)))
+            sizecoords.append(list(np.multiply(np.divide(sizegrains,resolution),dimensions)))
+            full_hs=[]
+            for x in range(int(sizegrains[0])):
+                for y in range(int(sizegrains[1])):
+                    full_hs.append(list(np.add(locgrains,[x,y])))
+            hslist.append(full_hs)
+            weightedratio+=ratio*(sizecoords[-1][0]*sizecoords[-1][1])
+            hstotalsize+=sizecoords[-1][0]*sizecoords[-1][1]
+        bgsize=dimensions[0]*dimensions[1]-hstotalsize
+        weightedratio+=1*bgsize
+        weightedratio=totalpower/weightedratio
+        normratio = list(np.multiply(weightedratio,self.distdict[dist]['hsratio']))
+        normratio.append(weightedratio)
+        for xcoord in list(range(resolution[0])):
+            x=xcoord/resolution[0]*dimensions[0]
+            for ycoord in list(range(resolution[1])):
+                y=ycoord/resolution[1]*dimensions[1]
+                power=normratio[-1]  #assumed background square until revealed otherwise below
+                for hs in hslist:
+                    if [xcoord,ycoord] in hs:
+                        power=normratio[hslist.index(hs)]
+                        break
+                power=power*dimensions[0]/resolution[0]*dimensions[1]/resolution[1]
+                flp.write("""block_{}_{}:
+    position {:.2f}, {:.2f};
+    dimension {:.2f}, {:.2f};
+    power values {};\n""".format(xcoord, ycoord, x, y, dimensions[0]/resolution[0], dimensions[1]/resolution[1], power))
+        flp.close()

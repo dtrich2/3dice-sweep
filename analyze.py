@@ -97,7 +97,6 @@ def to_array(filenames):
     pspace=getpspace(cfg)
     flat_pspace=getdefault(cfg, getcoupled=False, getstatic=False, flat=True, detailed=True)
     resultarray=np.array(resultsdf['T'])
-    print(flat_pspace.keys())
     resultarray=np.reshape(resultarray, pspace.shape)
     return resultarray
     #print(get_dim_index(pspace, 'materials_mem_k'))
@@ -124,11 +123,12 @@ def path_to_name(pspace, dimpath):
     for dim in pspace.get_info_dict()['dims']:
         if dim['full_path']==pathlist:
             return dim['name']
-"""
-def grads(filenames)
+
+def grads(filenames):
     myarray=to_array(filenames)
-    #TODO: use nditer to iterate over each element, or find way to specify N dimensions with get_dim_index
-"""
+    grads=np.array(np.gradient(myarray))
+    return grads
+
 #run this if called from command line
 if __name__ == "__main__":
     

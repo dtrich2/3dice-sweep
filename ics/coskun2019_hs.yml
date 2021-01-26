@@ -1,0 +1,105 @@
+# This is the configuration file for my simulation
+---
+
+defaultdimensions: [10000, 10000] #chip dimensions in um
+defaultresolution: [25, 25]  #simulation cell size in um
+
+sim_params: !pspace    # <- will construct a ParamSpace from what is inside
+  
+  heatsinks:
+    top:  #heatsink placed on top of IC
+      coefficient: !pdim
+        default: 2e5
+        values: [2e4, 2e5, 1e6]
+    bottom: #secondary heat path through PCB
+      coefficient: !pdim
+        default: 10
+        values: [10, 100, 1000]    #previously 10, 3110
+
+
+  materials: 
+    sio2: 
+      k: 1.1  #W/mK
+      C: 1.496e6  #J/m3K
+    sio22:
+      k: 1.1  #W/mK
+      C: 1.496e6  #J/m3K
+    transistors:
+      k: !pdim
+        default: 2
+        values: [2, 4, 8, 16]
+      C: 1.496e6  #placeholder
+    transistors2:
+      k: !coupled-pdim
+        target_name: transistors.k
+      C: 1.496e6  #placeholder
+    si : 
+      k: 130
+      C: 1.628e6
+    beol: 
+      k: !pdim
+        default: 2
+        values: [2, 4, 8, 16]
+      C: 1.496e6  #placeholder
+    beol2:
+      k: !pdim
+        default: 2
+        values: [2, 4, 8, 16]
+      C: 1.496e6  #placeholder
+  ncompute: !pdim
+    default: 1
+    values: [1, 2, 3]
+  nmemory: 0
+  nrepeats: 1
+  layers:
+    layerdict:
+      bottomlayer:
+        tiers: 
+          si: 76  #height in um. TIER ORDER NOT PRESERVED: SEE 'TIERORDERS'
+          transistors: 0.5
+          sio2: 0.2
+          beol: !pdim
+            default: 0.68     #W/cm2
+            values: [0.34, 0.68, 1.36]
+        power: !pdim
+          default: 34.608     #W/cm2
+          values: [23.072,34.608, 46.144]
+        sourcetier: 1 #zero-indexed
+      compute:
+        tiers: 
+          sio22: 0.1
+          transistors2: 0.5
+          beol2: 13.89
+        power: !coupled-pdim
+          target_name: power
+        sourcetier: 1
+    powers:
+      distlist:
+        compute: ['center','edges']
+        memory: ['uniform']
+      distdict:
+        uniform:
+          hslocs: []
+          hsratio: []
+          hssize: []
+        edges:
+          hslocs: [[0.25,0.25],[0.25,0.75],[0.75,0.25],[0.75,0.75]]
+          hsratio:
+            - 25
+            - 25
+            - 25
+            - 25
+            #- !pdim
+            #  default: 3
+            #  values: 3
+          hssize: [[0.04,0.04],[0.04,0.04],[0.04,0.04],[0.04,0.04]]
+        center:
+          hslocs: [[0.5,0.5]]
+          hsratio: 
+            - 25
+          hssize: [[0.04,0.04]]
+
+tierorders:
+  bottomlayer: [si, transistors, sio2, beol]
+  compute: [sio22, transistors2, beol2]
+  memory: [sio2]  #not used

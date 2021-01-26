@@ -39,9 +39,9 @@ def rdist(filenames, binning='material', changed={}):
     if 'beol2' in bins:
         bins['beol']=bins['beol']+bins['beol2']
         del bins['beol2']
-    bins.move_to_end('heatsink',last=False)
-    #print(changed)
-    #print(sum(bins.values())+300-273.15)
+    #bins.move_to_end('heatsink',last=False)
+    print(changed)
+    print(sum(bins.values()))
     return bins
 
 #helper function for rdist
@@ -94,10 +94,10 @@ def makeplot(filenames, changelist, binning='material', numonly=False, charttype
         for material in mybin:
             if material in legendnames:
                 if legendnames[material]=='Other':
-                    if 'Other' in newbin.keys():
-                        newbin['Other']+=mybin[material]
+                    if 'Stack' in newbin.keys():
+                        newbin['Stack']+=mybin[material]
                     else:
-                        newbin['Other']=mybin[material]
+                        newbin['Stack']=mybin[material]
                 else:
                     newbin[legendnames[material]]=mybin[material]
             else:
@@ -143,8 +143,10 @@ if __name__ == "__main__":
     {"name": "3 Memory \n BEOL k=4", "materials_beol_k": 4, "layers_bottomlayer_tiers_beol": 4},
     {"name": "10 Memory \n BEOL k=2", "nmemory": 10, "layers_bottomlayer_tiers_beol": 4},
     {"name": "10 Memory \n BEOL k=4", "materials_beol_k": 4, "nmemory": 10, "layers_bottomlayer_tiers_beol": 4}]
+    membeol_2dic_changelist=[{"name": "2D IC \n BEOL k=2", "nrepeats": 1, "nmemory": 1, "heatsinks_top_coefficient": 2e4, "layers_bottomlayer_tiers_beol": 4},
+    {"name": "2D IC \n BEOL k=4", "nrepeats": 1, "nmemory": 1, "heatsinks_top_coefficient": 2e4, "layers_bottomlayer_tiers_beol": 4, "materials_beol_k": 4}]
     past_future_changelist=[{"name": "2D IC", "nrepeats": 1, "nmemory": 1, "heatsinks_top_coefficient": 2e4, "layers_bottomlayer_tiers_beol": 4},
     {"name": "N3XT V1", "nrepeats": 1, "heatsinks_top_coefficient": 2e4, "layers_bottomlayer_tiers_beol": 4},
     {"name": "N3XT V2+", "nmemory": 10, "layers_bottomlayer_tiers_beol": 4}]
-    makeplot(filenames=sys.argv[1], changelist=past_future_changelist, charttype='bar',
-        legendnames={'heatsink':'Heatsink','mem': 'Other', 'sio2': 'Other', 'si':'Other', 'beol':'BEOL'}, figsize=(10,6))
+    makeplot(filenames=sys.argv[1], changelist=membeol_2dic_changelist, charttype='pie',
+        legendnames={'heatsink':'Heatsink','mem': 'Other', 'sio2': 'Other', 'si':'Other', 'beol':'Other'}, figsize=(10,6))

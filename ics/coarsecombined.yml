@@ -2,7 +2,7 @@
 ---
 
 defaultdimensions: [1000, 1000] #chip dimensions in um
-defaultgranularity: [100, 100]  #simulation cell size in um
+defaultresolution: [10, 10]  #simulation cell size in um
 
 sim_params: !pspace    # <- will construct a ParamSpace from what is inside
   
