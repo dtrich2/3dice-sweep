@@ -1,3 +1,0 @@
-% Maximum temperatures for the outlet of the channel TOP_CHANNEL
-% Time(s) 	 Temperature(K)
-0.000 	 320.259

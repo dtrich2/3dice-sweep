@@ -1,4 +1,0 @@
-RRAM:
-rectangle (30,30,1500,2780);
-power values 0.2919,0.2919,0.2919;	//2.502 is 60 W/cm2
-//0.2919 is 7 W/cm2
