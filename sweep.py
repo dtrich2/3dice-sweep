@@ -3,35 +3,43 @@
 
 #required packages
 from tqdm import tqdm
-import os
 
 #helper files
-from yamlhelper import *
+from sweephelper import *
 from ic import *
 
 def sweep(ymlfile, resultsfile):
   cfg=getcfg(ymlfile)
+  powerfile='powers/'+cfg['powerfile']
+  powers=getcfg(powerfile)
   pspace=getpspace(cfg)
   flat_pspace=getdefault(cfg, getcoupled=True, getstatic=True, flat=True, detailed=True)
   dimension_keys=getdefault(cfg, getcoupled=True, getstatic=False, flat=True, detailed=False).keys()
-  #print(pspace.get_info_str())
-  printinfo(cfg)
-  if not os.access('ice_files', os.R_OK):
-    os.mkdir('ice_files')
-  simdir='ice_files/'+ymlfile
-  if not os.access(simdir, os.R_OK):
-    os.mkdir(simdir)
-
+  print(pspace.get_info_str())
+  print("ETA: {:.2f} hours".format(pspace.volume*2/(3600)))
+  print("{}it total".format(pspace.volume))
+  #printinfo(cfg)
+  simdir=prep_filesystem(ymlfile)
 
   #SWEEP PARAMETER SPACE
   results = open(resultsfile, "w")
   writeheader(flat_pspace, dimension_keys, results)
   for params in tqdm(pspace):
-      layers=buildlayers(nrepeats=params['nrepeats'], ncompute=params['ncompute'], nmemory=params['nmemory'])
+      params['layers']['powers']=powers
+      for material in params['materials']:
+      	params['materials'][material]['k']=params['materials'][material]['k']/cfg['kscalar']
+      layers=buildlayers(layermapping=cfg['layermapping'], layerorder=params['layerorder'])
+      if params['floorplan-type']==0:
+        params['layers']['powers']['compute']=params['layers']['powers']['compute1']
+      elif params['floorplan-type']==1:
+        computekey='compute'+str(layers.count('compute'))
+        params['layers']['powers']['compute']=params['layers']['powers'][computekey]
+      elif params['floorplan-type']==2:
+        params['layers']['powers']['compute']=params['layers']['powers']['compute_uniform']
+        params['layers']['powers']['compute']['bgpowers']=[params['layers']['powers']['compute']['bgpowers'][0] for i in range(0,layers.count('compute'))]
       myic = ic(heatsinks=params['heatsinks'],
             materialdict=params['materials'],
-            distdict=params['layers']['powers']['distdict'],
-            distlist=params['layers']['powers']['distlist'],
+            powers=params['layers']['powers'],
             layerdict=params['layers']['layerdict'],
             tierorders=cfg['tierorders'],
             layers=layers,
@@ -48,45 +56,6 @@ def sweep(ymlfile, resultsfile):
       results.write("\n".format(tj))
   results.close()
   cleanup(simdir)
-
-def printinfo(cfg):
-  pspace=getpspace(cfg)
-  #print(pspace.get_info_str())
-  listvals(cfg)
-  print("ETA: {:.2f} hours".format(pspace.volume/(4*3600)))
-  print("{}it total".format(pspace.volume))
-
-def buildlayers(nrepeats, ncompute, nmemory):
-    layers=['bottomlayer']
-    for repeat in range(nrepeats):
-        for compute in range(ncompute):
-            if not (repeat==0 and compute==0):
-                layers.append('compute')
-        for memory in range(nmemory):
-            layers.append('memory')
-    return layers
-
-def cleanup(simdir):
-    files=[simdir+"/stack.stk", "xaxis.txt", "yaxis.txt"]
-    for name in files:
-        os.remove(name)
-    layer=0
-    while True:
-        name=simdir+"/layer{}.flp".format(layer)
-        if os.access(name, os.F_OK):
-            os.remove(name)
-            layer+=1
-        else:
-            break
-    layer=0
-    while True:
-        name=simdir+"/output_from_3DICE{}".format(layer)
-        if os.access(name, os.F_OK):
-            os.remove(name)
-            layer+=1
-        else:
-            break
-
 
 #run this if called from command line
 if __name__ == "__main__":

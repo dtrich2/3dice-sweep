@@ -7,12 +7,11 @@ import subprocess
 import numpy as np
 
 class ic:
-    def __init__(self, materialdict, layerdict, distdict, distlist, layers, tierorders, heatsinks, dimensions, resolution, outputfile, mydir, flps=[]):  #layer keys entered in 'layers' from bottom to top
+    def __init__(self, materialdict, layerdict, powers, layers, tierorders, heatsinks, dimensions, resolution, outputfile, mydir, flps=[]):  #layer keys entered in 'layers' from bottom to top
         self.heatsinks=heatsinks
         self.layerdict=layerdict
-        self.distlist=distlist
+        self.powers=powers
         self.materialdict=materialdict
-        self.distdict=distdict
         self.layers=layers
         self.dimensions=dimensions
         self.resolution=resolution
@@ -61,14 +60,12 @@ class ic:
         self.flps=[]
         distcounter={}
         origlayer=self.layers.copy()
-        self.layers[0]='compute'    #remove bottomlayer for simplicity
         for (layer,layernum) in zip(self.layers, list(range(0,len(self.layers)))):
-
-            if not (layer in distcounter) or distcounter[layer]>=len(self.distlist[layer]):
+            if not (layer in distcounter) or distcounter[layer]>=len(self.powers[layer]['bgpowers']):
                 distcounter[layer]=0
             flpfile=self.mydir+"/layer{}.flp".format(layernum)
             self.flps.append(flpfile)
-            self.writeflp(powerdens=self.layerdict[layer]['power'], flpfile=flpfile, dist=self.distlist[layer][distcounter[layer]])
+            self.writeflp(layer=layer, index=distcounter[layer], flpfile=flpfile)
             distcounter[layer]+=1
         self.layers=origlayer
 
@@ -127,47 +124,46 @@ output:\n""")
         maxes=[t-273.15 for t in maxes]
         return (max(maxes), averages)
 
-    def writeflp(self, powerdens, flpfile, dist):
+    def writeflp(self, layer, index, flpfile, return_only=False):
+        map_matrix=[]
         #normalize ratios to 1
         dimensions=self.dimensions
         resolution=self.resolution
         flp = open(flpfile, "w")
         area_in_cm=dimensions[0]*dimensions[1]*1e-8 #dimensions in um
-        totalpower=powerdens*area_in_cm
+        tilesize=dimensions[0]/resolution[0]*dimensions[1]/resolution[1]
         loccoords, sizecoords, hslist=([], [], [])
-        hstotalsize, weightedratio=(0,0)
-        for loc, ratio, size in zip(self.distdict[dist]['hslocs'], self.distdict[dist]['hsratio'], self.distdict[dist]['hssize']):
-            loc=np.subtract(loc,np.divide(size,2))   #convert from center to bottom left
-            locgrains=np.round(list(np.multiply(loc,resolution)))   #round to fit to granularity
-            sizegrains=np.round(list(np.multiply(size,resolution)))
-            if sizegrains[0]==0: sizegrains[0]=1        #no hotspot should disappear
-            if sizegrains[1]==0: sizegrains[1]=1
-            loccoords.append(list(np.multiply(np.divide(locgrains,resolution),dimensions)))
-            sizecoords.append(list(np.multiply(np.divide(sizegrains,resolution),dimensions)))
-            full_hs=[]
-            for x in range(int(sizegrains[0])):
-                for y in range(int(sizegrains[1])):
-                    full_hs.append(list(np.add(locgrains,[x,y])))
-            hslist.append(full_hs)
-            weightedratio+=ratio*(sizecoords[-1][0]*sizecoords[-1][1])
-            hstotalsize+=sizecoords[-1][0]*sizecoords[-1][1]
-        bgsize=dimensions[0]*dimensions[1]-hstotalsize
-        weightedratio+=1*bgsize
-        weightedratio=totalpower/weightedratio
-        normratio = list(np.multiply(weightedratio,self.distdict[dist]['hsratio']))
-        normratio.append(weightedratio)
+        if len(self.powers[layer]['hslocs'])>0:
+            for loc, size in zip(self.powers[layer]['hslocs'][index], self.powers[layer]['hssize'][index]):
+                #loc=np.subtract(loc,np.divide(size,2))   #convert from center to bottom left
+                locgrains=np.round(list(np.multiply(loc,resolution)))   #round to fit to granularity
+                sizegrains=np.round(list(np.multiply(size,resolution)))
+                if sizegrains[0]==0: sizegrains[0]=1        #no hotspot should disappear
+                if sizegrains[1]==0: sizegrains[1]=1
+                #loccoords.append(list(np.multiply(np.divide(locgrains,resolution),dimensions)))
+                #sizecoords.append(list(np.multiply(np.divide(sizegrains,resolution),dimensions)))
+                full_hs=[]
+                for x in range(int(sizegrains[0])):
+                    for y in range(int(sizegrains[1])):
+                        full_hs.append(list(np.add(locgrains,[x,y])))
+                hslist.append(full_hs)
         for xcoord in list(range(resolution[0])):
+            row_powers=[]
             x=xcoord/resolution[0]*dimensions[0]
             for ycoord in list(range(resolution[1])):
                 y=ycoord/resolution[1]*dimensions[1]
-                power=normratio[-1]  #assumed background square until revealed otherwise below
+                power=self.powers[layer]['bgpowers'][index]  #assumed background square until revealed otherwise below
                 for hs in hslist:
                     if [xcoord,ycoord] in hs:
-                        power=normratio[hslist.index(hs)]
+                        power=self.powers[layer]['hspowers'][index][hslist.index(hs)]
                         break
-                power=power*dimensions[0]/resolution[0]*dimensions[1]/resolution[1]
-                flp.write("""block_{}_{}:
+                row_powers.append(power)
+                power=np.round(power*1e-8*tilesize,10)  #convert from W/cm2 to W/tile
+                if not return_only:
+                    flp.write("""block_{}_{}:
     position {:.2f}, {:.2f};
     dimension {:.2f}, {:.2f};
     power values {};\n""".format(xcoord, ycoord, x, y, dimensions[0]/resolution[0], dimensions[1]/resolution[1], power))
+            map_matrix.append(row_powers)
         flp.close()
+        return map_matrix
