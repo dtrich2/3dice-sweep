@@ -1,0 +1,98 @@
+# This is the configuration file for my simulation
+---
+
+defaultdimensions: [150,150] #chip dimensions in um
+defaultresolution: [30,30]  #N simulation cells
+kscalar: 1
+simulator: 'PACT'
+engine: 'SPICE_steady'
+ncores: 16
+parallel: 'False'
+maxworkers: 1
+
+sim_params: !pspace    # <- will construct a ParamSpace from what is inside
+  floorplan:
+    powerfile: "uniform"  #if 'random', generate compute floorplan using other params every step
+    bgpower: !pdim
+      default: 100
+      values: [160]
+  heatsinks:
+    externalT: 293.15
+    top:  #heatsink placed on top of IC
+      type: 'simple'  #simple for htc only, or complex for full detail
+      coefficient: !pdim
+        default: 1e6
+        values: [1e6]
+      spreader:
+        thickness: 1 #doesn't do anything
+        k: 400 #W/m/K
+        C: 1750000
+
+  materials:
+    si: 
+      kxy: 150
+      kz: 150
+      C: 1.628e6
+    stackedsi : 
+      kxy: 65
+      kz: 30
+      C: 1.628e6
+    sio2: 
+      kxy: 0.2 #not actually sio2: modern ILD
+      kz: 0.2
+      C: 1.496e6  #J/m3K
+    beol:  
+      kxy: 5.47 #5.47,5.7398,5.9409
+      kz: 0.31 #0.31,0.422,0.98953
+      C: 1.496e6
+    beol2:  
+      kxy: 5.47 #5.47,5.7398,5.9409
+      kz: 0.31 #0.31,0.422,0.98953
+      C: 1.496e6
+    globalbeol: 
+      kxy: 101.73 #[27.45,101.73]
+      kz: 100.75 #[49.46,100.75]
+      C: 1.496e6
+    globalbeol2: 
+      kxy: 101.73 #[27.45,101.73]
+      kz: 100.75 #[49.46,100.75]
+      C: 1.496e6
+    scaffoldingmat:
+      kxy: 200 #unknown but prob doesn't matter
+      kz: 110 #98.68 #between 10 and 100 depending on signal routing %
+      C: 1.496e6
+  lattices:
+    through:  #if 'through' section exists, all selective lattices are ignored
+      material: scaffoldingmat
+      width: 5 #side in um
+      pitch: 16
+      excluded: ['si']
+      type: 'tsv'
+  Lc: !pdim
+    default: 1
+    values: [2,4,6,8,10,12,14,16,18,20,22]
+    order: 0
+  ncopies: 1
+  Lm: 0
+  Zmratio: 0.5
+  alpha: 0.5
+  layers:
+    layerdict:
+      bottomlayer:
+        tiers:
+          si: 50
+        sourcetier: 0
+      compute:
+        tiers:
+          stackedsi: 0.1
+          beol: 0.7
+          globalbeol: 0.240
+          beol2: 0.444
+          globalbeol2: 0.192
+        sourcetier: 0
+
+layermapping: [bottomlayer, compute]  #one-indexed
+
+tierorders:
+  bottomlayer: [si]
+  compute: [stackedsi, beol, globalbeol] #, beol2, globalbeol2
