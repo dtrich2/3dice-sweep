@@ -6,6 +6,7 @@ import pandas as pd
 #helper files
 from yamlhelper import *
 from pandashelper import *
+from sweephelper import *
 
 def gen_params(filenames, outputfile):
     cfg=getcfg(filenames)
@@ -38,18 +39,42 @@ def gen_params(filenames, outputfile):
         f.write("{}, {}\n".format("h"+layer,h))
     f.close()
 
-def gen_coords(filenames, outputfile, hbottom):
+def gen_power_pattern(powerfile, ic_dimensions, origin='center'):    #dimensions in um
+    powerfile='powers/'+powerfile
+    powers=getcfg(powerfile)
+    for layer in powers:
+        bg_power=powers[layer]['bgpowers']
+        for tier in range(len(bg_power)):
+            if not (isinstance(bg_power[tier],int) or isinstance(bg_power[tier],float)):
+                bg_power[tier]=bg_power[tier][0]
+            output_string="({}".format(bg_power[tier])
+            if len(powers[layer]['hslocs'])!=0:
+                for loc, size, power in zip(powers[layer]['hslocs'][tier], powers[layer]['hssize'][tier], powers[layer]['hspowers'][tier]):
+                    if origin=='center':
+                        loc=np.subtract(loc,0.5)
+                        size=np.subtract(size,0.5)
+                    xlim=np.round(np.multiply([loc[0],loc[0]+size[0]],ic_dimensions[0]),2)
+                    ylim=np.round(np.multiply([loc[1],loc[1]+size[1]],ic_dimensions[1]),2)
+                    output_string+="+(x>{}e-6)*(x<{}e-6)*(y>{}e-6)*(y<{}e-6)*({}-{})".format(xlim[0],xlim[1],ylim[0],ylim[1],np.round(power,2),bg_power[tier])
+            output_string+=") [W/cm^2]/layers_layerdict_compute_tiers_transistors"
+            print(layer+" tier {}".format(tier))
+            print(output_string)
+#(layers_layerdict_compute_power_bg+((x>2300e-6)*(x<2700e-6)*(y>2300e-6)*(y<2700e-6)+(x>-2700e-6)*(x<-2300e-6)*(y>2300e-6)*(y<2700e-6)+(x>2300e-6)*(x<2700e-6)*(y>-2700e-6)*(y<-2300e-6)+(x>-2700e-6)*(x<-2300e-6)*(y>-2700e-6)*(y<-2300e-6))*(layers_layerdict_compute_power-layers_layerdict_compute_power_bg))/layers_layerdict_compute_tiers_transistors
+
+def gen_coords(filenames, outputfile, hbottom, stack_properties=None):
     cfg=getcfg(filenames)
     defaults=getdefault(cfg, getcoupled=True, getstatic=True, flat=False, detailed=True)
-    zlist=gen_full_zlist(cfg,hbottom)
+    zlist=gen_full_zlist(cfg,hbottom, stack_properties)
     granularity=np.divide(cfg['defaultdimensions'],cfg['defaultresolution'])
     xlist=list(np.subtract(list(np.linspace(0,cfg['defaultdimensions'][0]-granularity[0],cfg['defaultresolution'][0])),(cfg['defaultdimensions'][0]-granularity[0])/2))
     ylist=list(np.subtract(list(np.linspace(0,cfg['defaultdimensions'][1]-granularity[1],cfg['defaultresolution'][1])),(cfg['defaultdimensions'][1]-granularity[1])/2))
     #(x>-2700e-6)*(x<-2300e-6)*(y>-2700e-6)*(y<-2300e-6))
-    f = open(outputfile+"_comsolsolnpoints.csv", "w")
+    outputfile=outputfile+"_comsolsolnpoints.csv"
+    f = open(outputfile, "w")
     writexyz(f, np.round(xlist,2), np.round(ylist,2), zlist)
     f.close()
     #[[2300,2700],[2300,2700]],[[-2700,-2300],[2300,2700]],[[2300,2700],[-2700,-2300]],[[-2700,-2300],[-2700,-2300]]
+    """
     hsgranularity=10
     hsranges=[[[-200,200],[-200,200]]]
     f = open(outputfile+"_hs_comsolsolnpoints.csv", "w")
@@ -58,6 +83,8 @@ def gen_coords(filenames, outputfile, hbottom):
     	yhslist=list(range(hs[1][0],hs[1][1]+1,hsgranularity))
     	writexyz(f, np.round(xhslist,2), np.round(yhslist,2), zlist)
     f.close()
+    """
+    print("written to {}".format(outputfile))
 
 def writexyz(f, xlist, ylist, zlist):
     for z in zlist:
@@ -65,15 +92,18 @@ def writexyz(f, xlist, ylist, zlist):
             for x in xlist:
                 f.write("{:g},{:g},{:g}\n".format(x,y,z))
 
-def gen_full_zlist(cfg,hbottom):
+def gen_full_zlist(cfg,hbottom,stack_properties=None):
     defaults=getdefault(cfg, getcoupled=True, getstatic=True, flat=False, detailed=True)
     stackstats=[]
     keylist=['nmemory', 'ncompute', 'nrepeats']
-    for key in keylist:
-        if isinstance(defaults[key], int):
-            stackstats.append([defaults[key]])
-        else:
-            stackstats.append(defaults[key].values)
+    if not stack_properties:
+        for key in keylist:
+            if isinstance(defaults[key], int):
+                stackstats.append([defaults[key]])
+            else:
+                stackstats.append(defaults[key].values)
+    else:
+        stackstats=stack_properties    
     nmemory, ncompute, nrepeats=tuple(stackstats)
     all_zlist=[]
     nrepeats=max(stackstats[2])
@@ -85,20 +115,20 @@ def gen_full_zlist(cfg,hbottom):
     return no_duplicates
 
 def gen_zlist(cfg, nmemory, ncompute, nrepeats, hbottom):
-    defaults=getdefault(cfg, getcoupled=True, getstatic=True, flat=False, detailed=True)
+    defaults=getdefault(cfg, getcoupled=True, getstatic=True, flat=False, detailed=False)
     heights={}
     offsets={}
-    for layer in defaults['layers']:
+    for layer in defaults['layers']['layerdict']:
         height=0
         if 'bottom' in layer:
             pass
         else:
             for tier in cfg['tierorders'][layer]:
-                if isinstance(defaults['layers'][layer]['tiers'][tier],paramspace.paramdim.CoupledParamDim):
-                    height+=defaults['layers'][layer]['tiers'][tier].default.value
+                if isinstance(defaults['layers']['layerdict'][layer]['tiers'][tier],paramspace.paramdim.CoupledParamDim):
+                    height+=defaults['layers']['layerdict'][layer]['tiers'][tier].default.value
                 else:
-                    height+=defaults['layers'][layer]['tiers'][tier]
-                if cfg['tierorders'][layer].index(tier)==defaults['layers'][layer]['sourcetier']:
+                    height+=defaults['layers']['layerdict'][layer]['tiers'][tier]
+                if cfg['tierorders'][layer].index(tier)==defaults['layers']['layerdict'][layer]['sourcetier']:
                     offset=height
             heights[layer]=height
             offsets[layer]=height-offset
@@ -120,16 +150,15 @@ def get_t_by_layer(cfg, comsolfile, nmemory, ncompute, nrepeats, hbottom):
     tlist=np.round(pd.read_csv(comsolfile, comment='%', delimiter=',', dtype=np.float64).to_numpy(),2)
     tlist_specific=[]
     for z in zlist:
-        mytlist=np.subtract(tlist[np.where(tlist[:,2] == z),3],273.15)
+        mytlist=np.subtract(tlist[np.where(tlist[:,2] == z),3],0)
         tlist_specific.append(np.reshape(mytlist, (-1)))
     return tlist_specific
 
-def write_df_file(filenames, prefix, hs=False):
+def write_df_file(filenames, prefix, stackstats, hs=False):
     comsolfolder='results/comsol/'+filenames
     if hs: prefix+='_hs'
     mydf = pd.DataFrame({'Tj' : []})
-    #cfg=getcfg(filenames)
-    cfg=getcfg('jan14log_n3xtv2_old')
+    cfg=getcfg('spreader_test')
     defaults=getdefault(cfg, getcoupled=False, getstatic=False, flat=True, detailed=False)
     comsollist=[]
     for item in glob.glob(comsolfolder+"/*.csv"):
@@ -143,7 +172,7 @@ def write_df_file(filenames, prefix, hs=False):
         for param in paramdict:
             testparams[param]=paramdict[param]
         #results from COMSOL
-        tlist=get_t_by_layer(cfg, file+'.csv', int(testparams['nmemory']), int(testparams['ncompute']), int(testparams['nrepeats']), hbottom=50)
+        tlist=get_t_by_layer(cfg, file+'.csv', stackstats[0], stackstats[1], stackstats[2], hbottom=50)
         maxes=[]
         avgs=[]
         for array in tlist:
@@ -154,6 +183,7 @@ def write_df_file(filenames, prefix, hs=False):
         testparams['Tavg']=sum(avgs)/len(avgs)
         mydf=mydf.append(testparams, ignore_index=True)
     mydf.to_csv('results/comsol/'+prefix+'_comsol.csv', float_format='%.2f', index=False, index_label=False)
+    print("results written to"+'results/comsol/'+prefix+'_comsol.csv')
 
 def compare(filenames):
     icedf=getdf(filenames)
@@ -213,7 +243,7 @@ def get_paramdict(file, prefix):
 if __name__ == "__main__":
     #gen_params(filenames=sys.argv[1], outputfile=sys.argv[1]+"_comsolparams.csv")
     #gen_coords(filenames=sys.argv[1], outputfile=sys.argv[1], hbottom=50)
-    write_df_file(filenames=sys.argv[1], prefix=sys.argv[1] , hs=False)
-    write_df_file(filenames=sys.argv[1], prefix=sys.argv[1] , hs=True)
+    #write_df_file(filenames=sys.argv[1], prefix=sys.argv[1] , hs=False)
+    #write_df_file(filenames=sys.argv[1], prefix=sys.argv[1] , hs=True)
     #compare(filenames=sys.argv[1])
-
+    gen_power_pattern(powerfile='opensparc', ic_dimensions=[1930,4000], origin='corner')

@@ -68,15 +68,6 @@ def add_column(filenames):
     cols=cols[:target_index]+cols[-1*n_new_columns:]+cols[target_index:-1*n_new_columns]
     resultsdf[cols].to_csv(path_or_buf='results/'+filenames+'.csv', index=False)
 
-def get_zm(order):
-    order_lst=list(map(int, str(order)))
-    Lc_above=order_lst.count(2)
-    Zm=0
-    for layer in order_lst:
-        if layer==2: Lc_above=Lc_above-1
-        elif layer==3: Zm=Zm+Lc_above
-    return Zm
-
 
 if __name__ == "__main__":
     filenames='apr21'

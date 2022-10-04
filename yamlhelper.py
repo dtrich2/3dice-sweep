@@ -1,6 +1,8 @@
+import sys
 from paramspace import yaml
 import paramspace
-
+from more_itertools import distinct_permutations
+import numpy as np
 
 def paths(tree, cur=()):
     if not isinstance(tree, dict):
@@ -10,8 +12,10 @@ def paths(tree, cur=()):
             for path in paths(s, cur+(n,)):
                 yield path
 
-def getcfg(filenames):
-    with open("./ics/"+filenames+".yml", mode='r') as cfg_file:
+def getcfg(filenames, pathhelp=True):
+    if pathhelp:
+        filenames=f"{sys.path[0]}/ics/"+filenames
+    with open(filenames+".yml", mode='r') as cfg_file:
         cfg = yaml.load(cfg_file)
     # cfg is now a dict with keys from .yaml file
     return cfg
@@ -96,18 +100,53 @@ def listvals(cfg):
         else:
             print("{} = {}".format(item, flat_pspace[item]))
 
-def writeheader(flat_pspace, keys, results):
-    if isinstance(flat_pspace['layerorder'], int): flat_pspace['layerorder']=[flat_pspace['layerorder']]
-    stack_sizes= [len(list(map(int, str(order)))) for order in flat_pspace['layerorder']]
-    maxstack=max(stack_sizes)
+def writeheader(flat_pspace, keys, resultsfile, toinsert=[]):
+    results = open(resultsfile, "a")
+    if 'Lm' in flat_pspace.keys():
+        if isinstance(flat_pspace['Lm'], int): flat_pspace['Lm']=[flat_pspace['Lm']]
+        if isinstance(flat_pspace['Lc'], int): flat_pspace['Lc']=[flat_pspace['Lc']]
+        maxstack=max(flat_pspace['Lm'])+max(flat_pspace['Lc'])+1
+    else: maxstack=len(str(flat_pspace['layerorder']))
     for param in keys:
+        results.write("{},".format(param))
+    for param in toinsert:
         results.write("{},".format(param))
     results.write("Tj,Tavg")
     for layer in list(range(maxstack)):
         results.write(",Tavg{}".format(layer))
     results.write("\n")
+    results.flush()
+    results.close()
     
 
-def writevalues(flat_params, keys, results):
+def writevalues(flat_params, keys, resultsfile, toinsert=[]):
+    results = open(resultsfile, "a")
     for param in keys:
         results.write("{},".format(flat_params[param]))
+    for value in toinsert:
+        results.write("{},".format(value))
+    results.flush()
+    results.close()
+
+def get_zm(order_lst):
+    Lc_above=order_lst.count('compute')
+    Zm=0
+    for layer in order_lst:
+        if layer=='compute': Lc_above=Lc_above-1
+        elif layer=='memory': Zm=Zm+Lc_above
+    return Zm
+
+def generate_layer_orders(Lc,Lm,Zm=None):
+    order_list=[]
+    seed_list=['compute' for i in range(0,Lc)]+['memory' for i in range(0,Lm)]
+    for p in distinct_permutations(seed_list):
+        if not Zm: order_list.append(list(p))
+        else:
+            if get_zm(list(p))==Zm: order_list.append(list(p))
+    return order_list
+
+def specific_layer_order(Lc,Lm,Zm,alpha):
+    candidate_orders=generate_layer_orders(Lc,Lm,Zm)
+    index=int(np.floor(alpha*len(candidate_orders)))
+    return candidate_orders[index]
+
