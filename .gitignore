@@ -1,6 +1,5 @@
 __pycache__/*
 results/*
-get_power_by_block.pl
 ice_files/*
 *axis.txt
 .cir
@@ -8,3 +7,5 @@ ice_files/*
 *.ipynb
 .vscode
 .nfs*
+venv
+holder.txt

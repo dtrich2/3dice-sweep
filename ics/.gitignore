@@ -1,3 +1,6 @@
 *.yml
-pre-mohamed/*
+!example.yml
+pre-mohamed
 scaff
+mflowgen
+.ipynb_checkpoints
