@@ -1,0 +1,17 @@
+# This is the configuration file for my simulation
+---
+compute:  #this layer from tony_1.yml SA approach
+  hslocs:  []
+  hspowers: []
+  hssize: []
+  bgpowers: [0]
+memory:
+  hslocs:  []
+  hspowers: []
+  hssize: []
+  bgpowers: [0]
+bottomlayer:
+  hslocs: [[[0.5, 0.5]], [[0.5,0.5]],[[0.5,0.5]]]
+  hspowers: [[1500], [1500],[1500]]
+  hssize: [[[0.05, 0.05]],[[0.05,0.05]],[[0.05,0.05]]]
+  bgpowers: [50,50,50]

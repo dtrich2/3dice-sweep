@@ -1,0 +1,8 @@
+-e /rsgs/pool0/denrich/3d-ice-latest/simfiles/ic
+matplotlib
+numpy
+pandas
+paramspace
+PyYAML
+SALib
+more-itertools

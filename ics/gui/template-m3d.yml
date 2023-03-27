@@ -1,0 +1,87 @@
+# This is the configuration file for my simulation
+---
+
+#defaultdimensions: [230,230] #chip dimensions in um
+#defaultdimensions: [750,600]
+defaultdimensions: [x_dim,y_dim]
+defaultresolution: [x_cells,y_cells]  #N simulation cells
+kscalar: 1
+simulator: 'PACT'
+engine: 'SPICE_steady'
+ncores: 16
+parallel: 'False'
+maxworkers: 1
+
+sim_params: !pspace    # <- will construct a ParamSpace from what is inside
+  floorplan:
+    powerfile: "power_gui"  #if 'random', generate compute floorplan using other params every step
+    scalar: 1
+  heatsinks:
+    externalT: 273.15 #373.15
+    top:  #heatsink placed on top of IC
+      type: 'simple'  #simple for htc only, or complex for full detail
+      coefficient: 1e9
+      spreader:
+        thickness: 1 #doesn't do anything
+        k: 400 #W/m/K
+        C: 1750000
+
+  materials:
+    si: 
+      kxy: 0.31
+      kz: 0.31
+      C: 1.628e6
+    stackedsi : 
+      kxy: 65
+      kz: 30
+      C: 1.628e6
+    sio2: 
+      kxy: 0.2 #not actually sio2: modern ILD
+      kz: 0.2
+      C: 1.496e6  #J/m3K
+    beol:  
+      kxy: 5.47 #5.47,5.7398,5.9409
+      kz: 0.31
+      C: 1.496e6
+    globalbeol: 
+      kxy: !pdim
+        default: 13.6
+        values: [13.6,101.73] #13.6 101.73
+      kz: !coupled-pdim
+        target_name: kxy
+        values: [6.9,93.59] # 6.9 93.59
+      C: 1.496e6
+    scaffoldingmat:
+      kxy: 10000 #unknown but prob doesn't matter
+      kz: 10000
+      C: 1.496e6
+  lattices:
+    file:  #if 'through' section exists, all selective lattices are ignored. if 'file' exists, write pattern from file
+      folder: "./ics/scaff/manual/gui_scaff"
+      tiers: ["beol","globalbeol","stackedsi","si"]
+      material: "scaffoldingmat"
+      type: "scaffold" #none scaffold
+  Lc: my_lc
+  ncopies: 1
+  Lm: 0
+  Zmratio: 0.5
+  alpha: 0.5
+  layers:
+    layerdict:
+      bottomlayer:
+        tiers:
+          si: 100
+        sourcetier: 0
+      compute:
+        tiers:
+          stackedsi: 0.1
+          beol: 0.7
+          globalbeol: 0.24
+        sourcetier: 0
+
+layermapping: [bottomlayer, compute] #, memory]  #one-indexed
+
+tierorders:
+  bottomlayer: [si]
+  compute: [stackedsi, beol, globalbeol] #, beol2, globalbeol2]
+  #memory: [stackedsi, beol, globalbeol]

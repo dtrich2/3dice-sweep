@@ -1,0 +1,10 @@
+__pycache__
+ics
+inputs
+other_geom
+outputs
+.nfs*
+*.txt
+*.yml
+!template-m3d.yml
+*.csv

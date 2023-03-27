@@ -1,0 +1,102 @@
+# This is the configuration file for my simulation
+---
+
+defaultdimensions: [30,30] #chip dimensions in um
+defaultresolution: [30,30]  #N simulation cells
+kscalar: 1
+simulator: 'PACT'
+engine: 'SPICE_steady'
+ncores: 16
+parallel: 'False'
+maxworkers: 1
+
+sim_params: !pspace    # <- will construct a ParamSpace from what is inside
+  floorplan:
+    powerfile: "uniform"
+    bgpower: [100,100,100,100]
+  heatsinks:
+    externalT: 298.15
+    top:  #heatsink placed on top of IC
+      type: 'simple'  #simple for htc only, or complex for full detail
+      coefficient: !pdim
+        default: 1e4
+        values: [3e4]
+      spreader:
+        thickness: 1 #doesn't do anything
+        k: 400 #W/m/K
+        C: 1750000
+    bottom:
+      coefficient: 10
+    microchannels:
+      pinfin:
+        exists: 0
+        height: 100
+        diam: 50
+        pitch: 100
+        dist: 'inline'
+        material: si
+        darcyvelocity: 1.1066e6
+      channels:
+        exists: 0
+        height: 100
+        channelum: 10
+        wallum: 10
+        wallmat: si
+        coolantflowrate: 42
+        coolanthtc:
+          side: 2.7132e-8
+          top: 5.7132e-8
+          bottom: 4.7132e-8
+      coolanthc: 4.172e-12
+      tiers: ['sicompute']
+
+  materials:
+    si : 
+      kxy: 130
+      kz: 130
+      C: 1.628e6
+    stackedsi : 
+      kxy: 130
+      kz: 130
+      C: 1.628e6
+    beol: 
+      kxy: 3.2
+      kz: 0.55
+      C: 1.496e6
+    tsvcopper:
+      kxy: 230 #160
+      kz: 230
+      C: 1.496e6
+    diamond:
+      kxy: 1500
+      kz: 1500
+      C: 1.496e6
+  lattices:
+    through:
+      type: proportional
+      material: tsvcopper
+      pitch: 50
+      width: 5
+      excluded: ["beol"]
+  layerorder: 1222
+  ncopies: 1
+  layers:
+    layerdict:
+      basecompute:
+        tiers:
+          si: 50
+          stackedsi: 0.1
+          beol: 0.94
+        sourcetier: 1
+      sicompute:
+        tiers:
+          si: 50
+          stackedsi: 0.1
+          beol: 0.94
+        sourcetier: 1
+
+layermapping: [basecompute,sicompute]  #one-indexed
+
+tierorders:
+  basecompute: [si, stackedsi, beol]
+  sicompute: [si, stackedsi, beol]
